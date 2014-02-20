@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dlim:Sequence xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dlim="http://sdq.ipd.uka.de/dlimm/0.1" name="model" terminateAfterLoops="1" firstIterationEnd="40.0" loopDuration="40.0" finalDuration="40.0">
+  <sequenceFunctionContainers name="seasonal0" duration="10.0" firstIterationEnd="10.0">
+    <function xsi:type="dlim:LinearTrend" functionOutputAtStart="5.0" functionOutputAtEnd="5.0"/>
+  </sequenceFunctionContainers>
+  <sequenceFunctionContainers name="seasonal1" duration="10.0" firstIterationStart="10.0" firstIterationEnd="20.0">
+    <function xsi:type="dlim:LinearTrend" functionOutputAtStart="10.0" functionOutputAtEnd="10.0"/>
+  </sequenceFunctionContainers>
+  <sequenceFunctionContainers name="seasonal2" duration="10.0" firstIterationStart="20.0" firstIterationEnd="30.0">
+    <function xsi:type="dlim:LinearTrend" functionOutputAtStart="20.0" functionOutputAtEnd="20.0"/>
+  </sequenceFunctionContainers>
+  <sequenceFunctionContainers name="seasonal3" duration="10.0" firstIterationStart="30.0" firstIterationEnd="40.0">
+    <function xsi:type="dlim:LinearTrend" functionOutputAtStart="40.0" functionOutputAtEnd="40.0"/>
+  </sequenceFunctionContainers>
+</dlim:Sequence>
