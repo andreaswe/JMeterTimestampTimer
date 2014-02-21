@@ -93,7 +93,6 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 			if (plannedStart > now) {
 				delay = plannedStart - now; 
 			}
-			//System.out.println("Delay: " + (plannedStart - now));
 		}
 		
 
@@ -111,7 +110,6 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 
 	public TimestampTimer() {
 		super();
-		System.out.println("new");
 	}
 
 	/**
@@ -121,12 +119,7 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 	 * - First timestamp which is intended to be used by the thread is selected
 	 */
 	private void readTimestampFile() {
-		System.out.println("readFile");
 		timestampsAvailable = TimestampUtils.readTimestampFile(timestampFile, ";", timestampMillis);
-		if (timestampsAvailable) {
-			System.out.println("success");
-		}
-		System.out.println("readOK " + (timestampMillis != null));
 	}
 
 
