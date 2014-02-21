@@ -1,13 +1,13 @@
 package org.apache.jmeter.timers.timestamp;
 
-import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.timers.Timer;
 
 /**
@@ -68,42 +68,36 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 	/**
 	 * usage mode: does every thread use all timestamps or are they shared between threads in thread group (default)
 	 */
-	private Mode 			usageMode = Mode.TimestampsSharedWithinThreadGroup;
-	private String 			timestampFile = "";
-	private Iterator<Long> 	currentTimestampIterator;
-	boolean  				timestampsAvailable = false;
-	long 					startTime;
-	long 					currentTimestamp;
-	long 					position = 0;
-	private boolean 		nextTimestampAvailable = false;
-	private List<Long> 		timestampMillis = new LinkedList<Long>();
-    private boolean 		started = false;
-	
-	
+	private Mode 				usageMode = Mode.TimestampsSharedWithinThreadGroup;
+	private String 				timestampFile = "";
+	long 						startTime;
+	private BlockingQueue<Long> timestampMillis = new LinkedBlockingQueue<Long>();
+	private boolean 			started = false;
+	private long				lastTimestamp = 0;
+
+
 
 	@Override
 	public long delay() {
+
 		long delay = 0;
-		int numberOfThreads = JMeterContextService.getContext().getThreadGroup().getNumberOfThreads();
-		// is a new timestamp available? if not set delay to 0
-		if (nextTimestampAvailable)
+		Long currentTimestamp = null;
+		try {
+			currentTimestamp = timestampMillis.poll(10,
+					TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {}
+
+		if (currentTimestamp == null)
 		{
-			long plannedStart = startTime + currentTimestamp;
-			long now = System.currentTimeMillis();
-			if (plannedStart > now) {
-				delay = plannedStart - now; 
-			}
+			// No timestamp left, let thread wait until end of test (otherwise it would produce samples where they should not appear)
+			currentTimestamp = lastTimestamp;
 		}
 		
-
-		switch (usageMode) {
-		case TimestampsSharedWithinThreadGroup:
-			goToNextTimestamp(numberOfThreads);
-			break;
-		case AllThreadsUseAllTimestamps:
-			goToNextTimestamp(1);
-			break;
-		}		
+		long plannedStart = startTime + currentTimestamp;
+		long now = System.currentTimeMillis();
+		if (plannedStart > now) {
+			delay = plannedStart - now; 
+		}
 		return delay;
 	}
 
@@ -119,22 +113,19 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 	 * - First timestamp which is intended to be used by the thread is selected
 	 */
 	private void readTimestampFile() {
-		timestampsAvailable = TimestampUtils.readTimestampFile(timestampFile, ";", timestampMillis);
-	}
+		LinkedList<Long> timestamps = new LinkedList<Long>();
 
-
-	/**
-	 * Jumps forward in timestamp file as specified by goForward
-	 * @param goForward number of timestamps to jump forward
-	 */
-	private void goToNextTimestamp(int goForward) {
-		while (goForward > 0 && currentTimestampIterator.hasNext())
+		boolean timestampsAvailable = TimestampUtils.readTimestampFile(timestampFile, ";", timestamps);
+		if (timestampsAvailable)
 		{
-			currentTimestamp = currentTimestampIterator.next();
-			goForward --;
-			position++;
+			timestampMillis.clear();
+			lastTimestamp = 0;
+			if (timestamps.size() > 0)
+			{
+				lastTimestamp = timestamps.get(timestamps.size()-1);
+				timestampMillis.addAll(timestamps);
+			}
 		}
-		nextTimestampAvailable = (goForward == 0);
 	}
 
 	public int getUsageMode() {
@@ -144,13 +135,13 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 	public void setUsageMode(int mode) {
 		this.usageMode = Mode.values()[mode];
 	}
-	
+
 	public String getFilename() {
 		return timestampFile;
 	}
-	
+
 	public void setFilename(String filename) {
-		if (filename != this.timestampFile)
+		if (filename != this.timestampFile && !started)
 		{
 			this.timestampFile = filename;
 			readTimestampFile();
@@ -179,50 +170,26 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 	@Override
 	public void testEnded(String host) {
 	}
-	
-	/**
-	 * Initilization method for clones (called in clone())
-	 */
-	private void initTimerClone() {
-		if (started)
-		{
-			selectFirstTimestampForThread();
-		}
-	}
 
 	/**
-	 * 
-	 */
-	private void selectFirstTimestampForThread() {
-		if (timestampsAvailable) {
-			currentTimestampIterator = timestampMillis.iterator();
-			// threadNum 0-indexed
-			int threadNum = JMeterContextService.getContext().getThreadNum();
-			switch (usageMode) {
-			case TimestampsSharedWithinThreadGroup:
-				goToNextTimestamp(threadNum + 1);
-				break;
-			case AllThreadsUseAllTimestamps:
-				goToNextTimestamp(1);
-				break;
-			}
-		}
-	}
-	
-	/**
 	 * Customized clone method to pass parameters which where already configured to clones
-	 * Triggers initTimerClone() method before returning
 	 */
 	@Override
 	public Object clone() {
 		TimestampTimer clone = (TimestampTimer)super.clone();
 		clone.usageMode = usageMode;
 		clone.timestampFile = timestampFile;
-		clone.startTime = this.startTime;
-		clone.timestampMillis = timestampMillis;
+		clone.startTime = startTime;
+		switch (usageMode) {
+		case TimestampsSharedWithinThreadGroup:
+			clone.timestampMillis = timestampMillis;
+			break;
+		case AllThreadsUseAllTimestamps:
+			clone.timestampMillis = new LinkedBlockingQueue<Long>(timestampMillis);
+			break;
+		}
 		clone.started = started;
-		clone.timestampsAvailable = timestampsAvailable;
-		clone.initTimerClone();
+		clone.lastTimestamp = lastTimestamp;
 		return clone;
 	}
 }
