@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -23,7 +24,9 @@ import java.util.List;
  * 
  * @author Andreas Weber <andreas.weber4@student.kit.edu>
  */
-public class TimestampUtils {
+public class TimestampUtils implements Serializable{
+
+	private static final long serialVersionUID = 1L;
 
 	private static final int SECONDS_TO_MILLISECONDS = 1000;
 
