@@ -8,6 +8,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jmeter.timers.Timer;
 
 /**
@@ -42,8 +44,7 @@ import org.apache.jmeter.timers.Timer;
  * @author Andreas Weber <andreas.weber4@student.kit.edu>
  */
 public class TimestampTimer extends AbstractTestElement implements Timer, TestStateListener, TestBean {
-
-
+	private static final int SAFETY_DELAY = 1000;
 	private static final long serialVersionUID = 240L;
 
 	/**
@@ -64,40 +65,58 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 			return propertyName;
 		}
 	}
+	
+	private class Timestamp {
+		public long id;
+		public long timestamp;
+		public Timestamp(long id, long timestamp) {
+			super();
+			this.id = id;
+			this.timestamp = timestamp;
+		}
+	}
 
 	/**
 	 * usage mode: does every thread use all timestamps or are they shared between threads in thread group (default)
 	 */
-	private Mode 				usageMode = Mode.TimestampsSharedWithinThreadGroup;
-	private String 				timestampFile = "";
-	long 						startTime;
-	private BlockingQueue<Long> timestampMillis = new LinkedBlockingQueue<Long>();
-	private boolean 			started = false;
-	private long				lastTimestamp = 0;
+	private Mode 						usageMode = Mode.TimestampsSharedWithinThreadGroup;
+	private String 						timestampFile = "";
+	long 								startTime;
+	private BlockingQueue<Timestamp> 	timestampList = new LinkedBlockingQueue<Timestamp>();
+	private boolean 					started = false;
+	private long						lastTimestamp = 0;
 
 
 
 	@Override
 	public long delay() {
-
 		long delay = 0;
-		Long currentTimestamp = null;
+		Timestamp currentTimestamp = null;
 		try {
-			currentTimestamp = timestampMillis.poll(10,
+			currentTimestamp = timestampList.poll(10,
 					TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {}
-
-		if (currentTimestamp == null)
-		{
-			// No timestamp left, let thread wait until end of test (otherwise it would produce samples where they should not appear)
-			currentTimestamp = lastTimestamp;
-		}
 		
-		long plannedStart = startTime + currentTimestamp;
+		JMeterContext context = getThreadContext();
+		JMeterVariables vars = context.getVariables();
+		long plannedStart;
+		if (currentTimestamp != null) {
+			plannedStart = startTime + currentTimestamp.timestamp;
+			vars.put("TIMESTAMPTIMER_ID", Long.toString(currentTimestamp.id));
+		} else  {
+			// No timestamp left, delay thread until end of test.
+			plannedStart = startTime + lastTimestamp + SAFETY_DELAY;
+			vars.put("TIMESTAMPTIMER_ID", Long.toString(0));
+			// Stops thread
+			// Be careful, the next sampler will be executed anyway!
+			// Thus the timer should always be embedded in an dummy sampler (if not every thread will produce one overhead sample)
+			context.getThread().stop();
+		}
 		long now = System.currentTimeMillis();
 		if (plannedStart > now) {
 			delay = plannedStart - now; 
 		}
+
 		return delay;
 	}
 
@@ -106,24 +125,25 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 		super();
 	}
 
-	/**
-	 * Initializes Timer. This means:
-	 * - Timestamp file is read
-	 * - Start time is saved
-	 * - First timestamp which is intended to be used by the thread is selected
-	 */
+
 	private void readTimestampFile() {
 		LinkedList<Long> timestamps = new LinkedList<Long>();
 
 		boolean timestampsAvailable = TimestampUtils.readTimestampFile(timestampFile, ";", timestamps);
 		if (timestampsAvailable)
 		{
-			timestampMillis.clear();
+			timestampList.clear();
 			lastTimestamp = 0;
-			if (timestamps.size() > 0)
+			int numberOfTimestamps = timestamps.size();
+			long count = 0; 
+			if (numberOfTimestamps > 0)
 			{
-				lastTimestamp = timestamps.get(timestamps.size()-1);
-				timestampMillis.addAll(timestamps);
+				lastTimestamp = timestamps.get(numberOfTimestamps-1);
+				for (long time : timestamps)
+				{
+					count++;
+					timestampList.add(new Timestamp(count, time));
+				}
 			}
 		}
 	}
@@ -152,7 +172,16 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 	@Override
 	public void testStarted() {
 		started = true;
-		startTime = System.currentTimeMillis();
+		JMeterContext context = getThreadContext();
+		JMeterVariables vars = context.getVariables();
+		String startTimeString = vars.get("TIMESTAMPTIMER_START");
+		if (startTimeString != null)
+		{
+			startTime = Long.parseLong(startTimeString);
+		} else {
+			startTime = System.currentTimeMillis();
+			vars.put("TIMESTAMPTIMER_START", Long.toString(startTime));
+		}
 	}
 
 
@@ -182,10 +211,10 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 		clone.startTime = startTime;
 		switch (usageMode) {
 		case TimestampsSharedWithinThreadGroup:
-			clone.timestampMillis = timestampMillis;
+			clone.timestampList = timestampList;
 			break;
 		case AllThreadsUseAllTimestamps:
-			clone.timestampMillis = new LinkedBlockingQueue<Long>(timestampMillis);
+			clone.timestampList = new LinkedBlockingQueue<Timestamp>(timestampList);
 			break;
 		}
 		clone.started = started;
