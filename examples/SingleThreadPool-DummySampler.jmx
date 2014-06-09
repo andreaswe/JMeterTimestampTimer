@@ -48,8 +48,8 @@
           <boolProp name="SUCCESFULL">true</boolProp>
           <stringProp name="RESPONSE_CODE">200</stringProp>
           <stringProp name="RESPONSE_MESSAGE">OK</stringProp>
-          <stringProp name="REQUEST_DATA"></stringProp>
-          <stringProp name="RESPONSE_DATA"></stringProp>
+          <stringProp name="REQUEST_DATA">${TIMESTAMP_ID} / ${TIMESTAMP_TOTAL}</stringProp>
+          <stringProp name="RESPONSE_DATA">${TIMESTAMP_ID} / ${TIMESTAMP_TOTAL}</stringProp>
           <stringProp name="RESPONSE_TIME">0</stringProp>
           <stringProp name="LATENCY">0</stringProp>
         </kg.apc.jmeter.samplers.DummySampler>
