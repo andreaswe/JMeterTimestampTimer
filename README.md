@@ -5,7 +5,7 @@ JMeter plugin for timestamp based delays (new timer component).
 
 
 ------------------------
-Installation:
+Installation
 ------------------------
 Just copy the TimestampPlugin.jar file into the folder lib/ext/ of your JMeter installation directory.
 Exemplary test plans require the Standard Set of JMeter Plugins (http://jmeter-plugins.org)
