@@ -13,7 +13,7 @@ import java.util.List;
  * Timestamp files must contain relative timestamps in seconds. Each line in the timestamp file must
  * contain one timestamp which is followed by a semicolon (;).
  * One option for creating timestamp files is the workload modeling tool LIMBO:
- * @see <a href="http://sdqweb.ipd.kit.edu/mediawiki-descartes/index.php/Tools#LIMBO:_Load_Intensity_Modeling_Tool">LIMBO Website</a>
+ * @see <a href="http://se2.informatik.uni-wuerzburg.de/mediawiki-se/index.php/Tools#LIMBO:_Load_Intensity_Modeling_Tool">LIMBO Website</a>
  * 
  * Examplary file content for a timestamp file:
  * 0.5;

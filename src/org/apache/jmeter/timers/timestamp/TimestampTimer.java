@@ -18,7 +18,7 @@ import org.apache.jmeter.timers.Timer;
  * contain relative timestamps in seconds. Each line in the timestamp file must
  * contain one timestamp which is followed by a semicolon (;).
  * One option for creating timestamp files is the workload modeling tool LIMBO:
- * @see <a href="http://www.descartes-research.net/Tools#LIMBO:_Load_Intensity_Modeling_Tool">LIMBO Website</a>
+ * @see <a href="http://se2.informatik.uni-wuerzburg.de/mediawiki-se/index.php/Tools#LIMBO:_Load_Intensity_Modeling_Tool">LIMBO Website</a>
  * 
  * Examplary file content for a timestamp file:
  * 0.5;
@@ -33,8 +33,8 @@ import org.apache.jmeter.timers.Timer;
  * ... and so on
  * 
  * Its possible to configure 2 different usage modes (important when Timer is placed in Thread Group with more than 1 threads):
- *  - "Every thread in thread group uses all timestamps"
- *  - "Timestamps are shared by threads in threadgroup"
+ *  - "Every thread in thread group uses all time stamps"
+ *  - "Timestamps are shared by threads in thread group (every time stamp is used once)"
  *  
  * When the first option is used every thread will delay its execution at the same points of time.
  * The second option allows "sharing" of timestamps between the thread. When the thread group contains
@@ -102,11 +102,11 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 		long plannedStart;
 		if (currentTimestamp != null) {
 			plannedStart = startTime + currentTimestamp.timestamp;
-			vars.put("TIMESTAMPTIMER_ID", Long.toString(currentTimestamp.id));
+			vars.put("TIMESTAMP_ID", Long.toString(currentTimestamp.id));
 		} else  {
 			// No timestamp left, delay thread until end of test.
 			plannedStart = startTime + lastTimestamp + SAFETY_DELAY;
-			vars.put("TIMESTAMPTIMER_ID", Long.toString(0));
+			vars.put("TIMESTAMP_ID", Long.toString(0));
 			// Stops thread
 			// Be careful, the next sampler will be executed anyway!
 			// Thus the timer should always be embedded in an dummy sampler (if not every thread will produce one overhead sample)
@@ -181,6 +181,7 @@ public class TimestampTimer extends AbstractTestElement implements Timer, TestSt
 		} else {
 			startTime = System.currentTimeMillis();
 			vars.put("TIMESTAMPTIMER_START", Long.toString(startTime));
+			vars.put("TIMESTAMP_TOTAL", Long.toString(timestampList.size()));
 		}
 	}
 
